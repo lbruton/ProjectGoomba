@@ -1,0 +1,10 @@
+# ProjectGoombaStomp Dependencies
+# 
+# Core requirement for PDF generation
+fpdf2>=2.5.0
+
+# Development dependencies (install with: pip install -r requirements-dev.txt)
+# pytest>=6.0
+# pytest-cov>=2.0  
+# black>=21.0
+# flake8>=3.8

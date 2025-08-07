@@ -1,125 +1,187 @@
-# ProjectGoombaStomp CLI (`goomba`)
+# 📁 ProjectGoombaStomp CLI (`goomba`)
 
-ProjectGoombaStomp is a **one‑shot documentation sweeper**: point it at a directory and it spits out a tidy Markdown digest of the folder tree *plus* the text‑friendly contents of every relevant file.  
-Optionally, it can:
+> **One-command directory documentation** – Turn any folder into beautiful Markdown docs with optional PDF and ZIP exports.
 
-* package the result into a UTF‑8‑safe PDF,
-* bundle everything into a ZIP archive,
-* include source‑code files in the output with a single switch.
+ProjectGoombaStomp is perfect for code reviews, project handoffs, compliance documentation, or just understanding what's in that folder you forgot about. Point it at any directory and get instant, comprehensive documentation.
 
-Perfect for quick code audits, compliance snapshots, or handing projects over to teammates.
+## ✨ What it does
 
----
+- 📂 **Scans directories** and creates a visual folder tree
+- 📝 **Extracts file contents** from text files, configs, and optionally source code
+- 🎨 **Generates beautiful Markdown** with syntax highlighting  
+- 📄 **Exports to PDF** for sharing and archiving
+- 📦 **Bundles everything in ZIP** for easy distribution
+- 🚀 **Works anywhere** – no complex setup required
 
-## 📦 Installation
+## 🚀 Quick Start
 
-### 1. Local‑user one‑liner *(recommended)*
+### One-Line Installation
 
 ```bash
-# download & unpack the release archive
-unzip projectgoomba_v1.0.4.zip
-cd projectgoomba_v1.0.4
+# Download and extract the project, then run:
+chmod +x install.sh && ./install.sh
+```
 
-# run the helper
+That's it! The installer handles everything automatically, including adding `goomba` to your PATH.
+
+### Basic Usage
+
+```bash
+# Document a project folder
+goomba ./my_project
+
+# Include source code files too  
+goomba ./my_project --include-code
+
+# Create PDF and ZIP bundles
+goomba ./my_project --pdf --zip
+
+# Generate everything at once
+goomba ./my_project --all
+```
+
+## 📋 Examples
+
+### Document a Python project
+```bash
+goomba ./my_python_app --include-code --pdf
+```
+Creates:
+- `merged/merged_output.md` - Complete Markdown documentation
+- `merged/merged_output.pdf` - PDF version for sharing
+
+### Audit a configuration directory
+```bash
+goomba /etc/myapp --zip
+```
+Perfect for compliance documentation and configuration audits.
+
+### Create project handoff package
+```bash
+goomba ./legacy_project --all
+```
+Generates Markdown, PDF, and ZIP with all source code included.
+
+## 🎯 Command Options
+
+| Option | Description |
+|--------|-------------|
+| `--include-code` | Include source code files (`.py`, `.js`, `.html`, etc.) |
+| `--pdf` | Generate PDF version (requires `fpdf2`) |
+| `--zip` | Bundle all outputs in a ZIP file |
+| `--all` | Enable all options above |
+| `--help` | Show detailed help |
+| `--version` | Show version information |
+
+## 📁 What Files Are Included?
+
+### Always Included
+- Text files: `.txt`, `.md`, `.rst`, `.log`
+- Config files: `.json`, `.yaml`, `.ini`, `.toml`, `.cfg`
+- Data files: `.csv`, `.xml`
+
+### With `--include-code`
+- Python: `.py`
+- JavaScript/TypeScript: `.js`, `.ts`  
+- Web: `.html`, `.css`, `.scss`
+- Other: `.php`, `.rb`, `.go`, `.java`, `.c`, `.cpp`, `.cs`
+- Scripts: `.sh`, `.bat`, `.ps1`
+- And many more!
+
+## 🔧 Installation Methods
+
+### Method 1: Easy Installer (Recommended)
+```bash
+# Extract the project and run
 chmod +x install.sh
 ./install.sh
 ```
 
-`install.sh` does three things:
-
-1. `pip install --user .` – installs the Python package in your user site‑packages;
-2. figures out where `pip` actually dropped the launcher (macOS puts it in `~/Library/Python/<ver>/bin`);
-3. symlinks that launcher to **`~/.local/bin/goomba`**.
-
-Make sure `~/.local/bin` is on your `PATH` (add `export PATH="$HOME/.local/bin:$PATH"` to your shell profile if needed).
-
-### 2. Plain pip
-
+### Method 2: Manual pip install
 ```bash
-pip install --user projectgoombastomp==1.0.4
+pip install --user .
+# Then add ~/.local/bin to your PATH manually
 ```
 
-(You’ll still need to add the user‑bin directory to your `PATH`.)
-
-### 3. Developer/editable install
-
+### Method 3: Development install
 ```bash
 git clone https://github.com/yourhandle/ProjectGoombaStomp.git
-pip install --user -e ProjectGoombaStomp
+cd ProjectGoombaStomp
+pip install --user -e .
 ```
 
----
-
-## 🔧 Usage
-
-```bash
-goomba /path/to/folder [OPTIONS]
-```
-
-| Flag | Description |
-|------|-------------|
-| `--include-code` | Also pull in `.py`, `.js`, `.html`, `.css` files. |
-| `--pdf` | Render the markdown to **merged_output.pdf** (UTF‑8 aware via Arial Unicode). |
-| `--zip` | Bundle every generated artefact into **merged_output.zip**. |
-
-> **Output location:** everything is written to a new `merged/` sub‑folder inside the target directory, using the base name `merged_output` plus the extension(s) you requested.
-
-### Examples
-
-Generate a Markdown inventory only:
-
-```bash
-goomba ./my_project
-```
-
-Generate Markdown + PDF, pulling in code files as well:
-
-```bash
-goomba ./my_project --include-code --pdf
-```
-
-Full boat (Markdown, PDF, ZIP):
-
-```bash
-goomba ./my_project --include-code --pdf --zip
-```
-
----
-
-## 🧽 Uninstall
-
-From the extracted release folder:
+## 🗑️ Uninstallation
 
 ```bash
 chmod +x uninstall.sh
 ./uninstall.sh
 ```
 
-The script removes the launcher symlink, uninstalls the pip package, and cleans up `~/.goombastomp` cache (if you created one).
+Removes the package, command, and any cache directories cleanly.
 
----
+## 💡 Pro Tips
 
-## 📝 Font note
+- **Large projects**: The tool automatically skips files larger than 1MB and limits directory depth
+- **Sensitive data**: Review the generated docs before sharing – they contain actual file contents
+- **PDF fonts**: Uses system fonts for maximum compatibility
+- **Output location**: Everything goes into a `merged/` folder in your target directory
 
-PDF generation relies on a Unicode‑capable TTF. The default path is
+## 🛠️ Requirements
+
+- **Python 3.7+** (comes with most modern systems)
+- **pip** for installation
+- **fpdf2** for PDF generation (installed automatically)
+
+## 🐛 Troubleshooting
+
+### "goomba command not found"
+```bash
+# Try restarting your terminal, or manually add to PATH:
+export PATH="$HOME/.local/bin:$PATH"
+```
+
+### PDF generation fails
+```bash
+# Install fpdf2 manually:
+pip install --user fpdf2
+```
+
+### Permission errors
+```bash
+# Make sure you can read the target directory:
+ls -la /path/to/directory
+```
+
+## 📊 Example Output Structure
 
 ```
-/System/Library/Fonts/Supplemental/Arial Unicode.ttf
+my_project/
+├── merged/
+│   ├── merged_output.md      # 📝 Markdown documentation
+│   ├── merged_output.pdf     # 📄 PDF version (if --pdf)
+│   └── merged_output.zip     # 📦 ZIP bundle (if --zip)
+├── src/
+├── docs/
+└── README.md
 ```
 
-Set the `GOOMBA_FONT` environment variable or tweak `cli.py` if you prefer another font.
+## 🤝 Contributing
+
+1. Fork the repository
+2. Create a feature branch: `git checkout -b feature-name`
+3. Make your changes and test them
+4. Submit a pull request
+
+## 📄 License
+
+MIT License - feel free to use this in your projects!
+
+## 🙋‍♂️ Support
+
+- 📖 **Documentation**: This README covers most use cases
+- 🐛 **Bug Reports**: Open an issue on GitHub
+- 💡 **Feature Requests**: We'd love to hear your ideas!
 
 ---
 
-## 🤝 Contributing
-
-1. Fork + branch.
-2. `pip install --user -e .[dev]`
-3. Run `pytest`.
-4. Submit a PR. 🌟
-
----
-
-## License
-
-MIT
+**Made with ❤️ by developers, for developers**

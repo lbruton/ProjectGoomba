@@ -1,134 +1,383 @@
+#!/usr/bin/env python3
+"""
+ProjectGoombaStomp CLI - A directory documentation tool
+Scans directories and creates Markdown documentation with optional PDF and ZIP exports.
+"""
 
 import os
+import sys
 import argparse
 import zipfile
-from fpdf import FPDF
+from pathlib import Path
+from typing import Set, List
 
 
-# ─── Helpers ────────────────────────────────────────────────────────────────────
-def build_folder_structure(root_dir: str) -> str:
-    """Return a tree-view of the folder, excluding hidden and large junk dirs."""
+def build_folder_structure(root_dir: str, max_depth: int = 10) -> str:
+    """
+    Generate a tree-view of the folder structure.
+    
+    Args:
+        root_dir: Root directory to scan
+        max_depth: Maximum recursion depth to prevent infinite loops
+        
+    Returns:
+        String representation of the folder tree
+    """
     lines = []
-
-    def walk(path: str, prefix: str = ""):
-        entries = sorted(
-            e
-            for e in os.listdir(path)
-            if not e.startswith((".", "._")) and e not in {"node_modules", ".git"}
-        )
+    
+    def walk(path: str, prefix: str = "", depth: int = 0):
+        if depth > max_depth:
+            return
+            
+        try:
+            entries = sorted([
+                e for e in os.listdir(path)
+                if not e.startswith((".", "._")) and e not in {
+                    "node_modules", ".git", "__pycache__", ".pytest_cache",
+                    ".venv", "venv", "env", "merged"
+                }
+            ])
+        except (PermissionError, OSError) as e:
+            lines.append(f"{prefix}[Permission Denied: {e}]")
+            return
+            
         for i, name in enumerate(entries):
-            full = os.path.join(path, name)
+            full_path = os.path.join(path, name)
             connector = "└── " if i == len(entries) - 1 else "├── "
             lines.append(f"{prefix}{connector}{name}")
-            if os.path.isdir(full):
-                walk(full, prefix + ("    " if i == len(entries) - 1 else "│   "))
-
-    lines.append(os.path.basename(root_dir.rstrip("/")) + "/")
+            
+            if os.path.isdir(full_path):
+                next_prefix = prefix + ("    " if i == len(entries) - 1 else "│   ")
+                walk(full_path, next_prefix, depth + 1)
+    
+    # Add root directory name
+    root_name = os.path.basename(root_dir.rstrip("/\\"))
+    lines.append(f"{root_name}/")
     walk(root_dir)
+    
     return "\n".join(lines)
 
 
-def collect_file_contents(root_dir: str, exts: set[str]) -> str:
-    """Read all matching files and return one big Markdown section."""
+def collect_file_contents(root_dir: str, extensions: Set[str], max_file_size: int = 1024 * 1024) -> str:
+    """
+    Collect contents from all matching files in the directory tree.
+    
+    Args:
+        root_dir: Root directory to scan
+        extensions: Set of file extensions to include
+        max_file_size: Maximum file size to read (in bytes)
+        
+    Returns:
+        Markdown formatted string containing all file contents
+    """
     parts = []
+    file_count = 0
+    
     for root, dirs, files in os.walk(root_dir):
-        dirs[:] = [d for d in dirs if not d.startswith((".", "._")) and d not in {".git"}]
+        # Skip hidden and unwanted directories
+        dirs[:] = [
+            d for d in dirs
+            if not d.startswith((".", "_")) and d not in {
+                ".git", "__pycache__", ".pytest_cache", "node_modules",
+                ".venv", "venv", "env", "merged"
+            }
+        ]
+        
         for file in sorted(files):
-            if file.startswith((".", "._")) or not any(file.lower().endswith(e) for e in exts):
+            if file.startswith((".", "_")):
                 continue
-            rel = os.path.relpath(os.path.join(root, file), root_dir)
+                
+            # Check if file extension matches
+            if not any(file.lower().endswith(ext.lower()) for ext in extensions):
+                continue
+            
+            file_path = os.path.join(root, file)
+            relative_path = os.path.relpath(file_path, root_dir)
+            
             try:
-                with open(os.path.join(root, file), encoding="utf-8") as fh:
-                    data = fh.read()
-            except Exception as e:
-                data = f"[ERROR reading file: {e}]"
-            parts.append(f"\n\n### {rel}\n```text\n{data}\n```")
-
-    return "\n".join(parts)
-
-
-def generate_markdown(root_dir: str, exts: set[str]) -> str:
-    return (
-        "# Folder Structure\n\n```\n"
-        + build_folder_structure(root_dir)
-        + "\n```\n\n# File Contents\n"
-        + collect_file_contents(root_dir, exts)
-    )
-
-
-# ─── Export helpers ─────────────────────────────────────────────────────────────
-def save_markdown(md: str, out: str):
-    with open(out, "w", encoding="utf-8") as fh:
-        fh.write(md)
-
-
-def save_pdf(md: str, out: str):
-    font_dir = os.path.join(os.path.dirname(__file__), "fpdf_fonts")
-    font_path = os.path.join(font_dir, "NotoSans-Regular.ttf")
-
-    if not os.path.exists(font_path):
-        raise RuntimeError(
-            f"Bundled font missing at {font_path}. Re-install or rebuild the package."
-        )
-
-    pdf = FPDF()
-    pdf.set_auto_page_break(auto=True, margin=10)
-    pdf.add_page()
-    pdf.add_font("NotoSans", "", font_path, uni=True)
-    pdf.set_font("NotoSans", "", 12)
-
-    for line in md.splitlines():
-        while len(line) > 95:
-            pdf.cell(0, 5, line[:95], ln=True)
-            line = line[95:]
-        pdf.cell(0, 5, line, ln=True)
-
-    pdf.output(out)
+                # Check file size
+                file_size = os.path.getsize(file_path)
+                if file_size > max_file_size:
+                    parts.append(f"\n\n### {relative_path}\n```\n[File too large: {file_size:,} bytes - skipped]\n```")
+                    continue
+                
+                # Try to read file
+                with open(file_path, 'r', encoding='utf-8', errors='replace') as fh:
+                    content = fh.read()
+                    
+                # Detect file type for syntax highlighting
+                ext = Path(file).suffix.lower()
+                language_map = {
+                    '.py': 'python', '.js': 'javascript', '.ts': 'typescript',
+                    '.html': 'html', '.css': 'css', '.json': 'json',
+                    '.yaml': 'yaml', '.yml': 'yaml', '.xml': 'xml',
+                    '.md': 'markdown', '.sh': 'bash', '.bat': 'batch'
+                }
+                language = language_map.get(ext, 'text')
+                
+                parts.append(f"\n\n### {relative_path}\n```{language}\n{content}\n```")
+                file_count += 1
+                
+            except (PermissionError, UnicodeDecodeError, OSError) as e:
+                parts.append(f"\n\n### {relative_path}\n```\n[Error reading file: {e}]\n```")
+    
+    if file_count == 0:
+        return "\n\n*No matching files found.*"
+    
+    return "".join(parts)
 
 
-def save_zip(paths: list[str], out: str):
-    with zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED) as z:
-        for p in paths:
-            z.write(p, os.path.basename(p))
+def generate_markdown(root_dir: str, extensions: Set[str]) -> str:
+    """
+    Generate complete Markdown documentation for a directory.
+    
+    Args:
+        root_dir: Root directory to document
+        extensions: File extensions to include
+        
+    Returns:
+        Complete Markdown document as string
+    """
+    root_name = os.path.basename(root_dir.rstrip("/\\"))
+    
+    markdown = f"""# {root_name} - Project Documentation
+
+Generated by ProjectGoombaStomp CLI
+
+## Folder Structure
+
+```
+{build_folder_structure(root_dir)}
+```
+
+## File Contents
+{collect_file_contents(root_dir, extensions)}
+
+---
+*Documentation generated on {Path(root_dir).resolve()}*
+"""
+    
+    return markdown
 
 
-# ─── CLI ────────────────────────────────────────────────────────────────────────
+def save_markdown(content: str, output_path: str) -> None:
+    """Save Markdown content to file."""
+    try:
+        with open(output_path, 'w', encoding='utf-8') as fh:
+            fh.write(content)
+        print(f"✅ Created Markdown: {output_path}")
+    except OSError as e:
+        print(f"❌ Error saving Markdown: {e}")
+        sys.exit(1)
+
+
+def save_pdf(markdown_content: str, output_path: str) -> None:
+    """
+    Save Markdown content as PDF using fpdf2.
+    Uses system default fonts for better compatibility.
+    """
+    try:
+        from fpdf import FPDF
+    except ImportError:
+        print("❌ PDF export requires fpdf2. Install with: pip install fpdf2")
+        sys.exit(1)
+    
+    try:
+        pdf = FPDF()
+        pdf.set_auto_page_break(auto=True, margin=15)
+        pdf.add_page()
+        
+        # Use built-in fonts (more reliable than custom fonts)
+        pdf.set_font("Arial", size=12)
+        
+        # Process content line by line
+        for line in markdown_content.splitlines():
+            # Handle different markdown elements
+            if line.startswith('# '):
+                pdf.set_font("Arial", "B", 16)
+                pdf.cell(0, 10, line[2:], ln=True)
+                pdf.ln(5)
+                pdf.set_font("Arial", size=12)
+            elif line.startswith('## '):
+                pdf.set_font("Arial", "B", 14)
+                pdf.cell(0, 8, line[3:], ln=True)
+                pdf.ln(3)
+                pdf.set_font("Arial", size=12)
+            elif line.startswith('### '):
+                pdf.set_font("Arial", "B", 12)
+                pdf.cell(0, 7, line[4:], ln=True)
+                pdf.ln(2)
+                pdf.set_font("Arial", size=10)
+            else:
+                # Handle long lines by wrapping
+                if len(line) > 90:
+                    words = line.split(' ')
+                    current_line = ""
+                    for word in words:
+                        if len(current_line + word) > 90:
+                            if current_line:
+                                pdf.cell(0, 5, current_line.strip(), ln=True)
+                            current_line = word + " "
+                        else:
+                            current_line += word + " "
+                    if current_line:
+                        pdf.cell(0, 5, current_line.strip(), ln=True)
+                else:
+                    pdf.cell(0, 5, line, ln=True)
+        
+        pdf.output(output_path)
+        print(f"✅ Created PDF: {output_path}")
+        
+    except Exception as e:
+        print(f"❌ Error creating PDF: {e}")
+        print("💡 Tip: PDF generation requires system fonts. Try running without --pdf flag.")
+        sys.exit(1)
+
+
+def save_zip(file_paths: List[str], output_path: str) -> None:
+    """Bundle multiple files into a ZIP archive."""
+    try:
+        with zipfile.ZipFile(output_path, 'w', zipfile.ZIP_DEFLATED) as zip_file:
+            for file_path in file_paths:
+                if os.path.exists(file_path):
+                    zip_file.write(file_path, os.path.basename(file_path))
+        print(f"✅ Created ZIP: {output_path}")
+    except Exception as e:
+        print(f"❌ Error creating ZIP: {e}")
+        sys.exit(1)
+
+
+def validate_directory(path: str) -> str:
+    """Validate and return absolute path to directory."""
+    abs_path = os.path.abspath(path)
+    
+    if not os.path.exists(abs_path):
+        print(f"❌ Directory does not exist: {path}")
+        sys.exit(1)
+    
+    if not os.path.isdir(abs_path):
+        print(f"❌ Path is not a directory: {path}")
+        sys.exit(1)
+    
+    if not os.access(abs_path, os.R_OK):
+        print(f"❌ Directory is not readable: {path}")
+        sys.exit(1)
+    
+    return abs_path
+
+
 def main():
-    p = argparse.ArgumentParser(
+    """Main CLI entry point."""
+    parser = argparse.ArgumentParser(
         prog="goomba",
-        description="Merge a folder into Markdown (plus optional PDF/ZIP) – UTF-8 safe",
+        description="📁 ProjectGoombaStomp: Document any directory as Markdown, PDF, or ZIP",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  goomba ./my_project                    # Basic Markdown documentation
+  goomba ./my_project --include-code     # Include source code files
+  goomba ./my_project --pdf --zip        # Create PDF and ZIP bundles
+  goomba ./my_project --all              # Generate all formats with code
+
+For more info: https://github.com/yourhandle/ProjectGoombaStomp
+        """
     )
-    p.add_argument("folder", help="Path to the folder you want to document")
-    p.add_argument("--include-code", action="store_true", help="Include code files")
-    p.add_argument("--pdf", action="store_true", help="Export a PDF")
-    p.add_argument("--zip", action="store_true", help="Bundle outputs into a ZIP")
-    args = p.parse_args()
-
-    base = os.path.abspath(args.folder)
-    merged_dir = os.path.join(base, "merged")
-    os.makedirs(merged_dir, exist_ok=True)
-
-    out_base = os.path.join(merged_dir, "merged_output")
-    exts = {".txt", ".md", ".log", ".csv", ".json", ".xml", ".yaml", ".yml", ".ini"}
+    
+    parser.add_argument(
+        "folder",
+        help="Path to the directory you want to document"
+    )
+    
+    parser.add_argument(
+        "--include-code",
+        action="store_true",
+        help="Include source code files (.py, .js, .html, .css, etc.)"
+    )
+    
+    parser.add_argument(
+        "--pdf",
+        action="store_true",
+        help="Generate PDF version (requires fpdf2)"
+    )
+    
+    parser.add_argument(
+        "--zip",
+        action="store_true",
+        help="Bundle all outputs into a ZIP archive"
+    )
+    
+    parser.add_argument(
+        "--all",
+        action="store_true",
+        help="Generate all formats and include code files (equivalent to --include-code --pdf --zip)"
+    )
+    
+    parser.add_argument(
+        "--version",
+        action="version",
+        version="ProjectGoombaStomp 1.0"
+    )
+    
+    args = parser.parse_args()
+    
+    # Handle --all flag
+    if args.all:
+        args.include_code = True
+        args.pdf = True
+        args.zip = True
+    
+    # Validate input directory
+    target_dir = validate_directory(args.folder)
+    
+    # Create output directory
+    output_dir = os.path.join(target_dir, "merged")
+    os.makedirs(output_dir, exist_ok=True)
+    
+    # Define file extensions to include
+    base_extensions = {
+        ".txt", ".md", ".rst", ".log", ".csv", ".json", ".xml", 
+        ".yaml", ".yml", ".ini", ".cfg", ".conf", ".toml"
+    }
+    
+    code_extensions = {
+        ".py", ".js", ".ts", ".html", ".css", ".scss", ".sass",
+        ".php", ".rb", ".go", ".rs", ".java", ".c", ".cpp", 
+        ".h", ".hpp", ".cs", ".swift", ".kt", ".dart", ".sh",
+        ".bat", ".ps1", ".sql", ".r", ".m", ".scala", ".clj"
+    }
+    
+    extensions = base_extensions
     if args.include_code:
-        exts |= {".py", ".html", ".js", ".css"}
-
-    md_path = out_base + ".md"
-    save_markdown(generate_markdown(base, exts), md_path)
-
-    created = [md_path]
+        extensions = base_extensions | code_extensions
+    
+    print(f"📁 Scanning directory: {target_dir}")
+    print(f"📝 Including {len(extensions)} file types")
+    
+    # Generate markdown
+    markdown_content = generate_markdown(target_dir, extensions)
+    
+    # Save outputs
+    output_base = os.path.join(output_dir, "merged_output")
+    created_files = []
+    
+    # Always create Markdown
+    md_path = f"{output_base}.md"
+    save_markdown(markdown_content, md_path)
+    created_files.append(md_path)
+    
+    # Create PDF if requested
     if args.pdf:
-        pdf_path = out_base + ".pdf"
-        save_pdf(open(md_path, encoding="utf-8").read(), pdf_path)
-        created.append(pdf_path)
+        pdf_path = f"{output_base}.pdf"
+        save_pdf(markdown_content, pdf_path)
+        created_files.append(pdf_path)
+    
+    # Create ZIP if requested
     if args.zip:
-        zip_path = out_base + ".zip"
-        save_zip(created, zip_path)
-        print(f"✅ Created ZIP: {zip_path}")
-
-    print("✅ Done. Files created:")
-    for f in created:
-        print(f" • {f}")
+        zip_path = f"{output_base}.zip"
+        save_zip(created_files, zip_path)
+    
+    print(f"\n🎉 Documentation complete! Files saved to: {output_dir}")
+    print(f"📊 Generated {len(created_files)} file(s)")
 
 
 if __name__ == "__main__":

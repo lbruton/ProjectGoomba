@@ -1,36 +1,53 @@
 #!/usr/bin/env bash
 #
-# uninstall.sh - Uninstall the GoombaStomp CLI (projectgoombastomp)
+# 🗑️ ProjectGoombaStomp Uninstaller
 #
-# This script removes the `goomba` executable, uninstalls the pip package,
-# and cleans up the default output cache directory if present.
-#
-# Usage:
-#   chmod +x uninstall.sh
-#   ./uninstall.sh
+# Removes the ProjectGoombaStomp CLI cleanly from your system
 #
 set -e
 
-echo "👉  Starting GoombaStomp CLI uninstall..."
+echo "🗑️ Uninstalling ProjectGoombaStomp CLI..."
 
-# Remove executable if it exists in PATH
+# Use pip3 if available, otherwise pip
+PIP_CMD="pip3"
+if ! command -v pip3 >/dev/null 2>&1; then
+    PIP_CMD="pip"
+fi
+
+# Uninstall the Python package
+echo "📦 Removing Python package..."
+$PIP_CMD uninstall -y projectgoombastomp 2>/dev/null || echo "   Package not found (already removed?)"
+
+# Remove goomba command if it exists in PATH
 if command -v goomba >/dev/null 2>&1; then
-    BIN_PATH=$(command -v goomba)
-    echo "   • Removing executable at $BIN_PATH"
-    sudo rm -f "$BIN_PATH"
-else
-    echo "   • No goomba executable found in PATH"
+    GOOMBA_PATH=$(command -v goomba)
+    echo "🔍 Found goomba at: $GOOMBA_PATH"
+    
+    # Only remove if it's in user space (safer)
+    if [[ "$GOOMBA_PATH" == *"$HOME"* ]]; then
+        echo "🗑️ Removing goomba executable..."
+        rm -f "$GOOMBA_PATH"
+    else
+        echo "⚠️  goomba found at system location: $GOOMBA_PATH"
+        echo "   You may need to remove it manually with: sudo rm $GOOMBA_PATH"
+    fi
 fi
 
-# Uninstall pip package
-echo "   • Uninstalling Python package (requires pip)"
-pip uninstall -y projectgoombastomp || true
+# Clean up cache directories if they exist
+CACHE_DIRS=(
+    "$HOME/.goombastomp"
+    "$HOME/.cache/goombastomp"
+    "$HOME/.local/share/goombastomp"
+)
 
-# Remove cache/output directory if the default exists
-DEFAULT_CACHE_DIR="$HOME/.goombastomp"
-if [ -d "$DEFAULT_CACHE_DIR" ]; then
-    echo "   • Removing cache directory $DEFAULT_CACHE_DIR"
-    rm -rf "$DEFAULT_CACHE_DIR"
-fi
+for cache_dir in "${CACHE_DIRS[@]}"; do
+    if [ -d "$cache_dir" ]; then
+        echo "🧹 Removing cache directory: $cache_dir"
+        rm -rf "$cache_dir"
+    fi
+done
 
-echo "✅  GoombaStomp CLI successfully uninstalled!"
+echo ""
+echo "✅ ProjectGoombaStomp CLI has been successfully uninstalled!"
+echo "💡 Note: PATH modifications in your shell config files were not automatically removed."
+echo "   You can manually clean up entries in ~/.bashrc, ~/.zshrc, etc. if desired."

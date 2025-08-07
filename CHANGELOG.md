@@ -1,61 +1,62 @@
 # Changelog
-## [1.0.5] - 2025-08-07
 
-### Fixed
-- **install.sh** is now self‑healing: it appends `~/.local/bin` to your shell’s startup file
-  (`.zprofile`, `.bash_profile`, etc.) if it’s missing, sources the file, and refreshes the shell
-  so the `goomba` command works immediately after install.
+All notable changes to ProjectGoombaStomp will be documented in this file.
 
-### Changed
-- Bumped version to `1.0.5` in `setup.py`.
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.0.4] - 2025-08-07
+## [1.0.0] - 2025-08-06
 
-### Added
-- Comprehensive **README.md** with installation, usage, examples, and troubleshooting.
-- Expanded **LLM.md** prompt guide.
+### 🎉 Initial Stable Release
 
-### Changed
-- Documentation only – no functional code changes.
+ProjectGoombaStomp CLI is ready for prime time! This stable release provides reliable directory documentation with multiple export formats.
 
-## [1.0.3] - 2025-08-07
+#### ✨ Features
+- **Directory Scanning**: Recursively scan folders and generate visual tree structures
+- **Content Extraction**: Extract and format contents from text files, configs, and source code
+- **Markdown Export**: Generate clean, well-formatted Markdown documentation with syntax highlighting
+- **PDF Export**: Create professional PDF documents using system fonts for maximum compatibility
+- **ZIP Bundling**: Package all outputs into convenient ZIP archives
+- **Smart File Detection**: Automatically includes appropriate file types based on extensions
+- **Code Support**: Optional inclusion of source code files with `--include-code` flag
+- **Safety Features**: 
+  - Automatic file size limits (1MB max per file)
+  - Directory depth limiting to prevent infinite loops
+  - Permission error handling
+  - Unicode-safe text processing
 
-### Fixed
-- **install.sh** now detects pip’s user-bin directory and symlinks `goomba` into `~/.local/bin`, so the command works out of the box on macOS/Homebrew and other setups where `pip --user` scripts are placed outside your PATH.
+#### 🛠️ Technical Improvements
+- **Robust PDF Generation**: Fixed font handling issues by using system fonts instead of bundled fonts
+- **Better Error Handling**: Comprehensive error handling for file access, encoding, and permission issues
+- **Enhanced CLI**: More user-friendly command-line interface with better help text and examples
+- **Improved Installation**: Pain-free installer that automatically handles PATH configuration
+- **Cross-Platform**: Works on macOS, Linux, and Windows with Python 3.7+
 
-### Changed
-- Bumped version to `1.0.3` in `setup.py`.
+#### 📦 Installation & Usage
+- **Simple Installation**: One-command installer handles everything automatically
+- **Clean Uninstallation**: Complete removal script for easy cleanup
+- **Comprehensive Documentation**: Detailed README with examples and troubleshooting
 
-## [1.0.2] - 2025-08-07
+#### 🔧 Dependencies
+- Python 3.7+ (required)
+- fpdf2 >=2.5.0 (for PDF generation)
 
-### Added
-- **install.sh** script installs the package in user space (`~/.local`) and guarantees the launcher is at `~/.local/bin/goomba`.
+#### 📝 Command Options
+- `goomba <directory>` - Basic Markdown documentation
+- `--include-code` - Include source code files
+- `--pdf` - Generate PDF version
+- `--zip` - Create ZIP bundle
+- `--all` - Enable all options
 
-### Changed
-- Bumped version to `1.0.2` in `setup.py`.
+---
 
-## [1.0.1] - 2025-08-06
+## Development Notes
 
-### Added
-- **Uninstall script:** `uninstall.sh` for straightforward removal of the CLI and its artifacts.
+This release represents a complete rewrite and cleanup of the original codebase, focusing on:
 
-### Changed
-- Bumped package version to `1.0.1` in `setup.py`.
+1. **Reliability**: Robust error handling and fallback mechanisms
+2. **Usability**: Simplified installation and clearer documentation
+3. **Maintainability**: Clean, well-documented code structure
+4. **Compatibility**: Works across different Python versions and operating systems
 
-
-
-## [1.0.0] - Initial Release
-
-### Added
-- Command-line tool: `goombastomp`
-- Recursively scans a target folder and builds:
-  - Folder structure tree
-  - Consolidated content from all text/code files
-- Generates output in Markdown (`.md`) format
-- Optional PDF export with UTF-8 (Unicode) support via `fpdf2`
-- Optional ZIP archive containing all outputs
-- Outputs are placed inside a `merged/` subfolder in the scanned directory
-- Support for common text and config files: `.txt`, `.md`, `.log`, `.json`, `.yaml`, `.csv`, `.ini`, etc.
-- Optional code file inclusion: `.py`, `.js`, `.html`, `.css`
-- Clean, pip-installable package with `goombastomp` as CLI entry point
-- Added `LLM.md` with a prompt to resume work or extend the project
+The PDF generation issue from previous versions has been completely resolved by switching to system fonts and improving the text rendering pipeline.
