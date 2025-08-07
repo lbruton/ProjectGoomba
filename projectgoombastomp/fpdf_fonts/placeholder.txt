@@ -1,0 +1,2 @@
+Placeholder for ArialUnicode.ttf.
+Please add the font file to this directory for Unicode support.
