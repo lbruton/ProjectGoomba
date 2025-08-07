@@ -99,27 +99,5 @@ The script removes the launcher symlink, uninstalls the pip package, and cleans 
 
 ---
 
-## 📝 Font note
 
-PDF generation relies on a Unicode‑capable TTF. The default path is
 
-```
-/System/Library/Fonts/Supplemental/Arial Unicode.ttf
-```
-
-Set the `GOOMBA_FONT` environment variable or tweak `cli.py` if you prefer another font.
-
----
-
-## 🤝 Contributing
-
-1. Fork + branch.
-2. `pip install --user -e .[dev]`
-3. Run `pytest`.
-4. Submit a PR. 🌟
-
----
-
-## License
-
-MIT
